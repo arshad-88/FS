@@ -1,0 +1,12 @@
+{
+  "name": "familyshield-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "FamilyShield backend: phone OTP auth, mutual family connections, emergency requests, nearby-helper matching.",
+  "main": "index.js",
+  "engines": { "node": ">=22.5.0" },
+  "scripts": {
+    "start": "node index.js",
+    "test": "node --test test/api.test.js"
+  }
+}

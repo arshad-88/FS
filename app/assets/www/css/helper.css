@@ -1,0 +1,299 @@
+/* FamilyShield — nearby-helper surface (helper duty / assignment response).
+   Linked from index.html after theme.css and sos.css. Styles the `#helper-root`
+   block only; every colour, radius, space and shadow is a theme.css token so the
+   helper duty never drifts from the rest of the app.
+
+   Naming: `helper__*` follows the BEM block used by js/sos.js (`sos__*`). The
+   flat `helper-*` aliases further down map the same treatments onto the equally
+   likely `helper-card` / `helper-meta` spelling, so the surface is never left
+   unstyled whichever names the module emits. State comes from the assignment
+   payload (pending / accepted / declined / expired). */
+
+/* ---------- root ---------- */
+#helper-root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fs-space-2);
+}
+
+#helper-root:empty {
+  display: none;
+}
+
+/* theme.css ships .mt-16 only; keep mt-8 / mt-12 local to this surface. */
+#helper-root .mt-8 {
+  margin-top: var(--fs-space-2);
+}
+
+#helper-root .mt-12 {
+  margin-top: var(--fs-space-3);
+}
+
+/* ---------- card ---------- */
+.helper,
+.helper-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--fs-space-2);
+  padding: var(--fs-space-3);
+  border: 0.8px solid var(--fs-border-soft);
+  border-radius: var(--fs-radius-lg);
+  background: var(--fs-glass);
+  -webkit-backdrop-filter: blur(var(--fs-blur));
+  backdrop-filter: blur(var(--fs-blur));
+  box-shadow: var(--fs-shadow-sm);
+  color: var(--fs-text);
+}
+
+/* A helper request is time-boxed, so the card carries an accent rail. */
+.helper::before,
+.helper-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--fs-primary);
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.helper--pending,
+.helper-card--urgent {
+  border-color: rgba(243, 199, 126, 0.34);
+  background:
+    linear-gradient(180deg, rgba(243, 199, 126, 0.07) 0%, rgba(24, 20, 39, 0) 45%),
+    var(--fs-glass);
+}
+
+.helper--pending::before,
+.helper-card--urgent::before {
+  background: linear-gradient(180deg, var(--fs-warn) 0%, rgba(243, 199, 126, 0.5) 100%);
+}
+
+.helper--accepted::before {
+  background: linear-gradient(180deg, var(--fs-primary) 0%, rgba(157, 114, 255, 0.5) 100%);
+}
+
+.helper--declined,
+.helper--expired,
+.helper--cancelled {
+  opacity: 0.8;
+}
+
+.helper--declined::before,
+.helper--expired::before,
+.helper--cancelled::before {
+  background: var(--fs-border);
+}
+
+/* ---------- head ---------- */
+.helper__head,
+.helper-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fs-space-2);
+  min-width: 0;
+}
+
+.helper__title,
+.helper-title {
+  min-width: 0;
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+.helper__name,
+.helper-name {
+  font-weight: 600;
+  color: var(--fs-text);
+}
+
+/* ---------- meta ---------- */
+.helper__meta,
+.helper-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--fs-space-2);
+  font-size: 12px;
+  line-height: 18px;
+  color: rgba(255, 255, 255, 0.66);
+}
+
+.helper__distance,
+.helper-distance {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  padding: 2px 8px;
+  border: 1px solid rgba(157, 114, 255, 0.3);
+  border-radius: var(--fs-radius-full);
+  background: rgba(157, 114, 255, 0.14);
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #e3d7ff;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.helper__state,
+.helper-state {
+  flex: 0 0 auto;
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+/* ---------- body ---------- */
+.helper__body,
+.helper-body {
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: rgba(255, 255, 255, 0.78);
+  overflow-wrap: anywhere;
+}
+
+/* The requester's note is free text from a human under stress: quote it, never
+   let it stretch the card. */
+.helper__note,
+.helper-note {
+  margin: 0;
+  padding: var(--fs-space-2) var(--fs-space-3);
+  border-left: 2px solid var(--fs-border-soft);
+  border-radius: 0 var(--fs-radius-md) var(--fs-radius-md) 0;
+  background: var(--fs-glass-2);
+  font-size: 13px;
+  line-height: 20px;
+  color: rgba(255, 255, 255, 0.82);
+  overflow-wrap: anywhere;
+}
+
+/* "Coordinates withheld until you accept" (API: precise:false). */
+.helper__privacy,
+.helper__hint,
+.helper-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  font-size: 11px;
+  line-height: 16px;
+  color: rgba(255, 255, 255, 0.58);
+  overflow-wrap: anywhere;
+}
+
+/* ---------- actions ---------- */
+.helper__actions,
+.helper-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--fs-space-2);
+  margin-top: var(--fs-space-1);
+}
+
+/* Accept is the commitment: it gets the full width on narrow phones while
+   decline stays reachable but visually secondary. */
+@media (max-width: 359px) {
+  .helper__actions,
+  .helper-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.helper__actions .btn,
+.helper-actions .btn {
+  min-height: 46px;
+}
+
+.helper__actions .btn--primary,
+.helper-actions .btn--primary {
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 480px) {
+  .helper__actions .btn--primary,
+  .helper-actions .btn--primary {
+    grid-column: auto;
+  }
+}
+
+.helper__actions .btn:focus-visible,
+.helper-actions .btn:focus-visible {
+  outline: none;
+  box-shadow: var(--fs-focus);
+}
+
+.helper__actions .btn:disabled,
+.helper-actions .btn:disabled {
+  opacity: 0.55;
+}
+
+/* A stale or lost race must read as inert, not tappable-but-broken.
+   Dimming only: pointer-events stay on so any "view details" action still works. */
+.helper--expired .btn,
+.helper--declined .btn,
+.helper--cancelled .btn {
+  opacity: 0.55;
+}
+
+/* ---------- list + empty ---------- */
+.helper__list,
+.helper-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fs-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.helper__empty,
+.helper-empty {
+  margin: 0;
+  padding: var(--fs-space-3);
+  border: 1px dashed var(--fs-border-soft);
+  border-radius: var(--fs-radius-lg);
+  background: var(--fs-glass-2);
+  font-size: 12px;
+  line-height: 18px;
+  color: rgba(255, 255, 255, 0.62);
+  text-align: center;
+}
+
+/* ---------- motion / contrast ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .helper,
+  .helper-card,
+  .helper .btn {
+    animation: none;
+    transition: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .helper,
+  .helper-card {
+    border-color: rgba(255, 255, 255, 0.34);
+    background: rgba(32, 25, 56, 0.92);
+  }
+
+  .helper__meta,
+  .helper-meta,
+  .helper__body,
+  .helper-body {
+    color: rgba(255, 255, 255, 0.9);
+  }
+}

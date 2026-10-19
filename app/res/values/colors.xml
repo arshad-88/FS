@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="fs_primary">#FF9D72FF</color>
+    <color name="fs_secondary">#FF201938</color>
+    <color name="fs_tertiary">#FF181427</color>
+    <color name="fs_bg">#FF181427</color>
+    <color name="fs_bg_2">#FF201938</color>
+    <color name="fs_neutral">#FFFFFFFF</color>
+    <color name="fs_text">#FFFFFFFF</color>
+    <color name="fs_text_2">#FF181427</color>
+    <color name="fs_accent">#FF9D72FF</color>
+</resources>

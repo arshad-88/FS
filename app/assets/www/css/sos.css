@@ -1,0 +1,204 @@
+/* FamilyShield — emergency (SOS) surface.
+   Linked from index.html after theme.css. This file only styles the `.sos` block
+   rendered by js/sos.js plus the spacing utilities that block actually emits.
+   Every shared component it touches (.card, .btn, .pill, .row, .muted) and every
+   colour, radius and space comes from theme.css tokens — nothing is redefined. */
+
+/* ---------- root ---------- */
+#sos-root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fs-space-2);
+}
+
+/* sos.js clears the root before rendering; never leave a stray gap behind. */
+#sos-root:empty {
+  display: none;
+}
+
+/* theme.css ships .mt-16 only, while sos.js uses mt-8 / mt-12.
+   Scope them to this surface so no global utility is invented. */
+#sos-root .mt-8 {
+  margin-top: var(--fs-space-2);
+}
+
+#sos-root .mt-12 {
+  margin-top: var(--fs-space-3);
+}
+
+/* ---------- card ---------- */
+.sos {
+  position: relative;
+  border-color: rgba(255, 122, 154, 0.26);
+  background:
+    linear-gradient(180deg, rgba(255, 122, 154, 0.06) 0%, rgba(24, 20, 39, 0) 42%),
+    var(--fs-glass);
+}
+
+/* A thin danger rail: the emergency card must read as urgent even before any
+   text is parsed, and it stays visible in greyscale/high-contrast modes.
+   The rail is rounded instead of clipping the card, so button focus rings and
+   button shadows are never cut off. */
+.sos::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  border-radius: var(--fs-radius-lg) 0 0 var(--fs-radius-lg);
+  background: linear-gradient(180deg, var(--fs-danger) 0%, var(--fs-danger-deep) 100%);
+  pointer-events: none;
+}
+
+.sos > .row {
+  gap: var(--fs-space-2);
+}
+
+.sos .h2 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.sos .muted {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* ---------- countdown ---------- */
+.sos__count {
+  margin-top: var(--fs-space-3);
+  font-family: var(--fs-font);
+  font-size: clamp(40px, 13vw, 64px);
+  line-height: 1.02;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--fs-danger);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.sos__count + .muted {
+  margin-top: var(--fs-space-2);
+}
+
+/* ---------- stats ---------- */
+.sos__stats {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--fs-space-2);
+  margin-top: var(--fs-space-3);
+}
+
+.sos__stat {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--fs-space-2);
+  min-width: 0;
+  padding: 10px var(--fs-space-3);
+  border: 1px solid var(--fs-border-soft);
+  border-radius: var(--fs-radius-md);
+  background: var(--fs-glass-2);
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.82);
+  overflow-wrap: anywhere;
+}
+
+.sos__stat::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  margin-top: 6px;
+  border-radius: var(--fs-radius-full);
+  background: var(--fs-primary);
+  box-shadow: 0 0 0 3px rgba(157, 114, 255, 0.16);
+}
+
+@media (min-width: 480px) {
+  .sos__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ---------- actions ---------- */
+/* The primary panic action is deliberately taller than a normal button so it is
+   reachable with a thumb and hard to hit by accident. */
+.sos .btn--danger.btn--block,
+.sos [data-sos-action] {
+  min-height: 52px;
+  font-size: 15px;
+  letter-spacing: 0.015em;
+}
+
+.sos .btn--danger.btn--block {
+  box-shadow: 0 14px 30px -16px rgba(255, 122, 154, 0.9);
+}
+
+.sos .btn--ghost.btn--danger {
+  background: rgba(255, 122, 154, 0.1);
+  border-color: rgba(255, 122, 154, 0.32);
+}
+
+.sos .btn:focus-visible,
+.sos a.btn:focus-visible {
+  outline: none;
+  box-shadow: var(--fs-focus);
+}
+
+/* A link styled as a button must not inherit the generic anchor colour. */
+.sos a.btn--primary {
+  color: #fff;
+  text-decoration: none;
+}
+
+.sos .btn:disabled {
+  opacity: 0.55;
+}
+
+/* ---------- state ---------- */
+.sos .pill--high {
+  border-color: rgba(255, 122, 154, 0.5);
+  background: rgba(255, 122, 154, 0.16);
+  color: #ffd7e1;
+}
+
+/* ---------- motion ---------- */
+@keyframes fs-sos-count-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.62;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sos__count {
+    animation: fs-sos-count-pulse 1s steps(2, end) infinite;
+  }
+
+  .sos .btn--danger.btn--block {
+    transition: transform var(--fs-dur) var(--fs-ease), box-shadow var(--fs-dur) var(--fs-ease);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sos__count,
+  .sos .btn {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* ---------- contrast ---------- */
+@media (prefers-contrast: more) {
+  .sos {
+    border-color: rgba(255, 122, 154, 0.55);
+    background: rgba(32, 25, 56, 0.92);
+  }
+
+  .sos__stat {
+    border-color: rgba(255, 255, 255, 0.34);
+  }
+}

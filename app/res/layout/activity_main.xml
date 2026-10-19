@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  FamilyShield host layout.
+
+  One full-bleed WebView: everything the user sees (topbar, tabbar, sheets, toast) is rendered by
+  the bundled web layer in app/assets/www/. The plum background matches @color/fs_bg and @style/FS.Theme
+  so there is no white flash while the asset page loads. No padding is declared here on purpose:
+  the manifest uses android:windowSoftInputMode="adjustResize" and the web layer already applies
+  env(safe-area-inset-*) itself, so adding insets here would double-count them.
+-->
+<WebView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/web_view"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/fs_bg"
+    android:overScrollMode="never"
+    android:scrollbars="none" />

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FamilyShield</string>
+    <string name="share_target">Check this message in FamilyShield</string>
+    <string name="chooser_title">Share with</string>
+    <!-- Title shown above the system photo/file picker that backs <input type="file">. -->
+    <string name="pick_file_title">Choose a photo</string>
+</resources>

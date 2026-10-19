@@ -1,0 +1,55 @@
+# FamilyShield — ignore rules for the public repo.
+# Rationale for each block is in docs/PUSH_TO_GITHUB.md §4.
+
+# ---- secrets & runtime state -------------------------------------------------
+# server/data holds a live SQLite database and the generated HMAC token secret.
+server/data/
+*.db
+*.db-shm
+*.db-wal
+.token-secret
+
+# Real environment files stay local; the template is committed.
+server/.env
+server/.env.*
+!server/.env.example
+
+# ---- signing material --------------------------------------------------------
+# tools/build_apk.py regenerates keystore/debug.keystore (-storepass android)
+# on first run, so no private key ever needs to live in the repo.
+keystore/
+*.jks
+*.keystore
+
+# ---- fetched dependencies ----------------------------------------------------
+# tools/fetch_firebase_deps.py repopulates .deps/firebase/; 75 jars, not source.
+.deps/
+node_modules/
+.venv/
+venv/
+
+# ---- build output ------------------------------------------------------------
+dist/
+build/
+*.apk
+*.apks
+*.aab
+*.class
+*.dex
+
+# ---- OS / editor / tool noise ------------------------------------------------
+# Microsoft/ is a stray PowerShell ModuleAnalysisCache written into the project.
+Microsoft/
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# ---- Python ------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+
+# ---- agent scratch & tool transcripts ----
+.tenzy/

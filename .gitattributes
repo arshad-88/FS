@@ -1,0 +1,12 @@
+# Normalise text to LF in the repository so Windows CRLF churn never shows up
+# as phantom diffs. Working trees on Windows can still be CRLF via core.autocrlf.
+* text=auto eol=lf
+
+# Never let git touch these.
+*.png binary
+*.jar binary
+*.so binary
+*.woff2 binary
+*.db binary
+*.keystore binary
+*.jks binary

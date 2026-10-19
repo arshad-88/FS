@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#181427">
+<title>FamilyShield</title>
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/sos.css">
+<link rel="stylesheet" href="css/helper.css">
+</head>
+<body>
+<!-- In-house Solar linear icon sprite: 24x24, fill none, stroke currentColor, 1.5 width. -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true" focusable="false">
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 2.6v5.7c0 4.4-2.8 7.7-7 9.7-4.2-2-7-5.3-7-9.7V5.6L12 3z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 12l2.2 2.2L15.5 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-scan" viewBox="0 0 24 24"><path d="M4 8V5.5A1.5 1.5 0 015.5 4H8M16 4h2.5A1.5 1.5 0 0120 5.5V8M20 16v2.5a1.5 1.5 0 01-1.5 1.5H16M8 20H5.5A1.5 1.5 0 014 18.5V16M4 12h16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-guide" viewBox="0 0 24 24"><path d="M5 4.5A1.5 1.5 0 016.5 3H19v15H6.5A1.5 1.5 0 005 19.5v-15z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M5 19.5A1.5 1.5 0 016.5 21H19v-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M9 7.5h6M9 11h4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-family" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 20c0-3 2.5-5.3 5.5-5.3s5.5 2.3 5.5 5.3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="17" cy="9" r="2.4" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M16 14.4c2.7 0 4.9 2 4.9 4.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><path d="M4 12a8 8 0 108-8 8.3 8.3 0 00-6 2.6L4 8.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 4v4.5h4.5M12 7.5V12l3 1.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M12 3.2v2.2M12 18.6v2.2M4.8 12H2.6M21.4 12h-2.2M6.9 6.9L5.3 5.3M18.7 18.7l-1.6-1.6M17.1 6.9l1.6-1.6M5.3 18.7l1.6-1.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 8.5v4.2M12 16.2h.01" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M10.3 4.9L3.2 17.4A1.7 1.7 0 004.7 20h14.6a1.7 1.7 0 001.5-2.6L13.7 4.9a2 2 0 00-3.4 0z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.2 4.2L19 6.9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="11" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M15.5 8.5V5.5a2 2 0 00-2-2h-8a2 2 0 00-2 2v9a2 2 0 002 2h2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15.5 5.5L9 12l6.5 6.5M9.4 12H20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 7h15M9.5 7V4.8c0-.7.6-1.3 1.3-1.3h2.4c.7 0 1.3.6 1.3 1.3V7M6.5 7l.9 12.1c.1 1 .9 1.9 1.9 1.9h5.4c1 0 1.8-.9 1.9-1.9L17.5 7M10.2 11v6M13.8 11v6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><path d="M7.4 3.5l2.3 3.9-1.8 2.1a12.6 12.6 0 006.6 6.6l2.1-1.8 3.9 2.3-.6 2.7a1.8 1.8 0 01-1.8 1.4C10.8 20.7 3.3 13.2 3.3 5.9a1.8 1.8 0 011.4-1.8l2.7-.6z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10.5 13.5a4 4 0 005.7 0l2.6-2.6a4 4 0 10-5.7-5.7L11.7 6.6M13.5 10.5a4 4 0 00-5.7 0l-2.6 2.6a4 4 0 105.7 5.7l1.4-1.4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 20c0-3 2.5-5.3 5.5-5.3s5.5 2.3 5.5 5.3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="17" cy="9" r="2.4" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M16 14.4c2.7 0 4.9 2 4.9 4.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4.5h5.5V10M19 5l-7.5 7.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 14.5v4a2 2 0 01-2 2H5.5a2 2 0 01-2-2V8a2 2 0 012-2h3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 10.5V8a4 4 0 018 0v2.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M12 11v5M12 8h.01" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 12h17M12 3.5c2.2 2.3 3.4 5.3 3.4 8.5S14.2 18.2 12 20.5C9.8 18.2 8.6 15.2 8.6 12S9.8 5.8 12 3.5z" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+  <symbol id="i-account" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M4.8 20.2c0-3.6 3.2-6.2 7.2-6.2s7.2 2.6 7.2 6.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+</svg>
+
+<div class="app" id="app">
+  <header class="topbar">
+    <div class="topbar__brand">
+      <span class="avatar avatar--brand"><img src="img/emblem.png" alt="" width="40" height="40" decoding="async"></span>
+      <div>
+        <div class="topbar__title" data-i18n="app.name">FamilyShield</div>
+        <div class="tiny muted" data-i18n="app.disclaimerShort">FamilyShield helps you think, it cannot promise safety.</div>
+      </div>
+    </div>
+    <div class="topbar__actions">
+      <span class="pill pill--safe" id="offline-badge"><svg class="icon icon--sm" aria-hidden="true"><use href="#i-lock"></use></svg><span data-i18n="settings.offline">Offline</span></span>
+    </div>
+  </header>
+
+  <main class="app__main">
+    <div class="content">
+
+      <!-- SCAN -->
+      <section class="view is-active" id="view-scan" data-view="scan">
+        <div class="stack">
+          <div class="shell-gradient hero">
+            <div class="shell-gradient__inner hero__inner">
+              <p class="badge" data-i18n="home.privacyNote">100% on your phone</p>
+              <h1 class="display" data-i18n="home.title">Is this message safe?</h1>
+              <p class="body hero__sub" data-i18n="home.subtitle">Paste any SMS, WhatsApp message or link. FamilyShield checks it for scam tricks.</p>
+            </div>
+          </div>
+
+          <!-- Emergency and nearby-helper surfaces. Both are rendered from real
+               server state by js/sos.js and js/helper.js; no state here is faked. -->
+          <div id="sos-root" class="stack--sm"></div>
+          <div id="helper-root" class="stack--sm"></div>
+
+          <div class="card">
+            <div class="field">
+              <label class="field__label" for="scan-input" data-i18n="home.inputLabel">Message or link</label>
+              <textarea class="textarea" id="scan-input" rows="6" maxlength="20000" data-i18n-placeholder="home.placeholder" placeholder="Paste or type the message here…" spellcheck="false" autocomplete="off"></textarea>
+              <div class="row row--between">
+                <span class="tiny muted" id="input-hint" data-i18n="home.tipBody">Never share your OTP, PIN or password.</span>
+                <span class="tiny muted numeric" id="char-count">0</span>
+              </div>
+            </div>
+            <div class="stack--sm">
+              <button class="btn btn--primary btn--block" id="btn-analyze" type="button">
+                <svg class="icon" aria-hidden="true"><use href="#i-scan"></use></svg>
+                <span data-i18n="home.analyze">Check message</span>
+              </button>
+              <div class="grid grid--2">
+                <button class="btn btn--ghost" id="btn-paste" type="button"><svg class="icon" aria-hidden="true"><use href="#i-copy"></use></svg><span data-i18n="home.paste">Paste</span></button>
+                <button class="btn btn--ghost" id="btn-example" type="button"><svg class="icon" aria-hidden="true"><use href="#i-info"></use></svg><span data-i18n="home.example">Try example</span></button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card glass--soft">
+            <div class="row row--center">
+              <span class="verdict__icon"><svg class="icon" aria-hidden="true"><use href="#i-lock"></use></svg></span>
+              <div class="grow">
+                <div class="h3" data-i18n="home.tipTitle">Private by design</div>
+                <p class="small muted" data-i18n="app.disclaimerShort">FamilyShield helps you think, it cannot promise safety.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- RESULT -->
+      <section class="view" id="view-result" data-view="result" aria-live="polite">
+        <div class="stack">
+          <div class="row row--between">
+            <button class="btn btn--ghost btn--icon" id="btn-result-back" type="button" aria-label="Back" data-i18n-aria-label="result.back"><svg class="icon" aria-hidden="true"><use href="#i-back"></use></svg></button>
+            <button class="btn btn--ghost" id="btn-copy" type="button"><svg class="icon" aria-hidden="true"><use href="#i-copy"></use></svg><span data-i18n="result.copy">Copy</span></button>
+          </div>
+          <div id="result-body" class="stack"></div>
+        </div>
+      </section>
+
+      <!-- GUIDE -->
+      <section class="view" id="view-guide" data-view="guide">
+        <div class="stack">
+          <div class="section">
+            <div class="section__head">
+              <h1 class="h1" data-i18n="guide.title">Stay safe</h1>
+              <p class="section__sub" data-i18n="guide.subtitle">Simple rules that stop most scams.</p>
+            </div>
+          </div>
+          <div class="guide" id="guide-rules"></div>
+          <div class="card">
+            <div class="h2" data-i18n="guide.helplineTitle">Need help now?</div>
+            <div id="guide-helpline" class="stack--sm"></div>
+            <div class="grid grid--2">
+              <button class="btn btn--primary" id="btn-call-helpline" type="button" data-number="1930"><svg class="icon" aria-hidden="true"><use href="#i-phone"></use></svg><span data-i18n="guide.callHelpline">Call 1930</span></button>
+              <button class="btn btn--ghost" id="btn-open-cybercrime" type="button"><svg class="icon" aria-hidden="true"><use href="#i-external"></use></svg><span data-i18n="guide.openCybercrime">Report online</span></button>
+            </div>
+            <div class="alert-box alert-box--warn mt-16">
+              <svg class="icon" aria-hidden="true"><use href="#i-alert"></use></svg>
+              <p class="small" data-i18n="guide.reportTitle">Report within 24 hours</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- FAMILY -->
+      <section class="view" id="view-family" data-view="family">
+        <div class="stack">
+          <div class="section">
+            <div class="section__head">
+              <h1 class="h1" data-i18n="family.title">Your family</h1>
+              <p class="section__sub" data-i18n="family.subtitle">Keep your people warned.</p>
+            </div>
+            <button class="btn btn--primary" id="btn-add-family" type="button"><svg class="icon" aria-hidden="true"><use href="#i-plus"></use></svg><span data-i18n="family.add">Add family member</span></button>
+          </div>
+          <div id="family-list" class="stack--sm"></div>
+          <div class="alert-box">
+            <svg class="icon" aria-hidden="true"><use href="#i-lock"></use></svg>
+            <p class="small" data-i18n="family.privacy">Numbers are used only to send alerts.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- HISTORY -->
+      <section class="view" id="view-history" data-view="history">
+        <div class="stack">
+          <div class="section">
+            <div class="section__head">
+              <h1 class="h1" data-i18n="history.title">Recent checks</h1>
+              <p class="section__sub" id="history-summary" data-i18n="history.summary">Nothing here yet.</p>
+            </div>
+            <button class="btn btn--ghost btn--danger" id="btn-clear-history" type="button"><svg class="icon" aria-hidden="true"><use href="#i-trash"></use></svg><span data-i18n="history.clear">Clear history</span></button>
+          </div>
+          <div id="history-list" class="stack--sm"></div>
+        </div>
+      </section>
+
+      <!-- ACCOUNT -->
+      <section class="view" id="view-account" data-view="account">
+        <div class="stack">
+          <div class="section">
+            <div class="section__head">
+              <h1 class="h1" data-i18n="account.title">Family account</h1>
+              <p class="section__sub" data-i18n="account.subtitle">Optional. Sign in to link family phones and approve requests. Message checks stay on this device.</p>
+            </div>
+            <button class="btn btn--ghost mt-16" id="btn-account-back" type="button"><svg class="icon" aria-hidden="true"><use href="#i-back"></use></svg><span data-i18n="account.back">Back to settings</span></button>
+          </div>
+          <div id="cloud-root" class="cloud-root"></div>
+        </div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section class="view" id="view-settings" data-view="settings">
+        <div class="stack">
+          <div class="section">
+            <div class="section__head">
+              <h1 class="h1" data-i18n="settings.title">Settings</h1>
+            </div>
+          </div>
+          <div class="card">
+            <div class="field">
+              <label class="field__label" for="lang-select" data-i18n="settings.language">Language</label>
+              <select class="select" id="lang-select"></select>
+            </div>
+          </div>
+          <div class="card">
+            <div class="h2" data-i18n="settings.about">About</div>
+            <p class="small muted" data-i18n="settings.aboutBody">FamilyShield checks messages for known scam patterns, entirely on your phone.</p>
+            <div class="divider"></div>
+            <div class="list">
+              <div class="list__row"><div class="list__body"><div class="list__meta" data-i18n="settings.version">App version</div><div class="list__title numeric" id="settings-version">1.1</div></div></div>
+              <div class="list__row"><div class="list__body"><div class="list__meta" data-i18n="settings.engineVersion">Engine</div><div class="list__title numeric" id="settings-engine-version">1.0.0</div></div></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="h2" data-i18n="settings.privacy">Privacy</div>
+            <p class="small muted" data-i18n="settings.privacyBody">Messages are analysed on-device and never sent anywhere.</p>
+            <div class="divider"></div>
+            <div class="h3" data-i18n="settings.noPermissions">Only what you allow</div>
+            <p class="small muted" data-i18n="settings.noPermissionsBody">Internet is used for the family account and SOS. Location is used only when you send an SOS.</p>
+            <div class="h3 mt-16" data-i18n="settings.offline">Checks work offline</div>
+            <p class="small muted" data-i18n="settings.offlineBody">Scam checking works without a network connection.</p>
+          </div>
+          <div class="card">
+            <div class="h2" data-i18n="account.title">Family account</div>
+            <p class="small muted" data-i18n="account.subtitle">Optional. Sign in to link family phones and approve requests. Message checks stay on this device.</p>
+            <button class="btn btn--ghost mt-16" id="btn-open-account" type="button"><svg class="icon" aria-hidden="true"><use href="#i-account"></use></svg><span data-i18n="account.open">Manage family account</span></button>
+          </div>
+          <div class="card glass--soft">
+            <div class="h3" data-i18n="settings.disclaimer">Remember</div>
+            <p class="small muted" data-i18n="settings.disclaimerBody">This is a guide, not a guarantee. When in doubt, call the official number.</p>
+            <button class="btn btn--ghost btn--danger mt-16" id="btn-reset" type="button"><svg class="icon" aria-hidden="true"><use href="#i-trash"></use></svg><span data-i18n="settings.reset">Reset app data</span></button>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <nav class="tabbar" aria-label="Main">
+    <button class="tabbar__item is-active" data-nav="scan" type="button"><svg class="icon" aria-hidden="true"><use href="#i-scan"></use></svg><span class="tabbar__label" data-i18n="nav.scan">Check</span></button>
+    <button class="tabbar__item" data-nav="guide" type="button"><svg class="icon" aria-hidden="true"><use href="#i-guide"></use></svg><span class="tabbar__label" data-i18n="nav.guide">Guide</span></button>
+    <button class="tabbar__item" data-nav="family" type="button"><svg class="icon" aria-hidden="true"><use href="#i-family"></use></svg><span class="tabbar__label" data-i18n="nav.family">Family</span></button>
+    <button class="tabbar__item" data-nav="history" type="button"><svg class="icon" aria-hidden="true"><use href="#i-history"></use></svg><span class="tabbar__label" data-i18n="nav.history">History</span></button>
+    <button class="tabbar__item" data-nav="settings" type="button"><svg class="icon" aria-hidden="true"><use href="#i-settings"></use></svg><span class="tabbar__label" data-i18n="nav.settings">Settings</span></button>
+  </nav>
+
+  <!-- Family sheet -->
+  <div class="sheet" id="family-sheet" aria-hidden="true">
+    <div class="sheet__scrim" data-close-sheet="family-sheet"></div>
+    <div class="sheet__panel" role="dialog" aria-modal="true" aria-labelledby="family-sheet-title">
+      <div class="sheet__head"><h2 class="h2" id="family-sheet-title" data-i18n="family.add">Add family member</h2></div>
+      <div class="sheet__body">
+        <div class="field">
+          <label class="field__label" for="family-name" data-i18n="family.name">Name</label>
+          <input class="input" id="family-name" type="text" maxlength="60" autocomplete="off">
+        </div>
+        <div class="field">
+          <label class="field__label" for="family-phone" data-i18n="family.phone">Phone number</label>
+          <input class="input" id="family-phone" type="tel" maxlength="20" inputmode="tel" autocomplete="off">
+        </div>
+        <p class="tiny muted" id="family-invalid" hidden></p>
+      </div>
+      <div class="sheet__actions">
+        <button class="btn btn--ghost" id="family-cancel" type="button" data-i18n="common.cancel">Cancel</button>
+        <button class="btn btn--primary" id="btn-save-family" type="button" data-i18n="common.save">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Clear-history sheet -->
+  <div class="sheet" id="history-clear-sheet" aria-hidden="true">
+    <div class="sheet__scrim" data-close-sheet="history-clear-sheet"></div>
+    <div class="sheet__panel" role="dialog" aria-modal="true" aria-labelledby="history-clear-title">
+      <div class="sheet__head"><h2 class="h2" id="history-clear-title" data-i18n="history.clearConfirm">Clear all checks?</h2></div>
+      <div class="sheet__body"><p class="body muted" data-i18n="history.empty">Nothing here yet.</p></div>
+      <div class="sheet__actions">
+        <button class="btn btn--ghost" id="history-cancel-clear" type="button" data-i18n="common.cancel">Cancel</button>
+        <button class="btn btn--danger" id="history-confirm-clear" type="button" data-i18n="history.clear">Clear history</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</div>
+
+<script src="js/i18n.base.js"></script>
+<script src="js/i18n.te.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/app.js"></script>
+<script src="js/geo.js"></script>
+<script src="js/cloud.js"></script>
+<script src="js/push.js"></script>
+<script src="js/sos.js"></script>
+<script src="js/helper.js"></script>
+</body>
+</html>

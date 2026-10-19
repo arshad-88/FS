@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  FamilyShield — Android host manifest.
+
+  REVISED for the self-hosted-backend build (see docs/CONTRACTS.md §4 and §6). The shell is no
+  longer "zero permissions / fully offline"; it now declares exactly four permissions, each of
+  which is guarded in code:
+
+    * INTERNET — lets the WebView reach the single backend origin the user configured
+      (window.FSAndroid.setBackendOrigin). MainActivity's WebViewClient still refuses every other
+      http/https request and refuses all navigations away from the bundled asset page, so the
+      permission cannot be used by page script to phone home anywhere else.
+    * ACCESS_COARSE_LOCATION / ACCESS_FINE_LOCATION — requested at runtime (API 23+, minSdk 24),
+      never at install time. Nothing is read until the page calls
+      window.FSAndroid.requestLocation(id, fine) in response to a user action; the fix is returned
+      to window.FS.nativeLocation(json) and is never persisted by the shell.
+    * POST_NOTIFICATIONS — requested at runtime on API 33+; nothing is posted unless the web
+      layer reports an event the backend already confirmed.
+
+  Still deliberately absent:
+    * READ_MEDIA_IMAGES / READ_EXTERNAL_STORAGE — the photo picker goes through the system picker
+      (ACTION_GET_CONTENT, and android.provider.action.PICK_IMAGES on API 33+), which is a
+      one-shot per-file grant. FamilyShield never scans the gallery.
+    * CAMERA, CALL_PHONE, READ_SMS, ACCESS_BACKGROUND_LOCATION.
+
+  Two privacy switches are deliberate:
+    * android:allowBackup="false" — the scanner stores the pasted texts it has analysed in the
+      fs_store SharedPreferences file. With backups enabled the platform would copy that file to
+      the user's Google Drive and carry it to a replacement device, which contradicts the app's
+      "nothing leaves the phone unless you send it" promise. Everything FamilyShield persists can
+      be re-created by the user, so nothing of value is lost.
+    * android:networkSecurityConfig — cleartext is off app-wide except loopback, and only system
+      trust anchors are accepted (a user-installed MITM CA is refused).
+
+  The manifest also advertises the SEND intent of a share sheet, so a suspicious SMS can be
+  forwarded straight into the scanner from Messages.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.familyshield.app"
+    android:versionCode="4"
+    android:versionName="1.3">
+
+    <uses-sdk
+        android:minSdkVersion="24"
+        android:targetSdkVersion="34" />
+
+    <!-- Backend sync only, to the one origin the user configured. See the header comment. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Runtime-requested; approximate is enough for the "share my area with family" flow. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!--
+      Runtime-requested on API 33+ (see MainActivity.showNotification) and only ever posted for a
+      server-confirmed event: the user's own alert reaching a family member, a family alert
+      arriving, or an accepted helper responding. The app never schedules its own reminders.
+    -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application
+        android:label="@string/app_name"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:theme="@style/FS.Theme"
+        android:allowBackup="false"
+        android:hardwareAccelerated="true"
+        android:supportsRtl="true"
+        android:usesCleartextTraffic="false"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:extractNativeLibs="true">
+
+        <activity
+            android:name="com.familyshield.app.MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:label="@string/app_name"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|uiMode|locale|layoutDirection|density|fontScale"
+            android:windowSoftInputMode="adjustResize">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
