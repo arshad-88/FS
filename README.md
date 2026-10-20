@@ -23,7 +23,7 @@ server/                  Node >= 22.5 backend, zero runtime dependencies
   index.js               HTTP entry point (routing, CORS, security headers)
   auth.js  family.js  emergency.js  providers.js
   db.js  config.js  util.js  http.js
-  test/api.test.js       node:test suite (17 tests)
+  test/*.test.js         node:test suites (api, config, fcm — run with `npm test`)
 docs/
   CONTRACTS.md           single source of truth for the client⇄server contract
   API.md                 endpoint reference
