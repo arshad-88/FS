@@ -4,6 +4,6 @@
   "private": true,
   "description": "Root task runner. The API server keeps its own package.json under server/.",
   "scripts": {
-    "test": "node --test server/test/api.test.js"
+    "test": "node --test \"server/test/*.test.js\""
   }
 }
