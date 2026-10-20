@@ -14,6 +14,14 @@ server/.env
 server/.env.*
 !server/.env.example
 
+# ---- Firebase / push credentials ---------------------------------------------
+# google-services.json is per-project device config and a service-account JSON is
+# a private key: neither belongs in the public repo. The server reads FCM
+# credentials from the environment instead (see docs/FCM_HANDOFF.md §2).
+app/google-services.json
+*-firebase-adminsdk-*.json
+service-account*.json
+
 # ---- signing material --------------------------------------------------------
 # tools/build_apk.py regenerates keystore/debug.keystore (-storepass android)
 # on first run, so no private key ever needs to live in the repo.
