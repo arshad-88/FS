@@ -116,6 +116,18 @@ public final class MainActivity extends Activity {
     private int notificationSequence;
     /** True once the POST_NOTIFICATIONS prompt was shown in this process. */
     private boolean notificationPermissionAsked;
+
+    // ------------------------------------------------------------ cloud messaging
+
+    /** True between onResume() and onPause(); decides in-app refresh vs. tray notification. */
+    private static volatile boolean appForeground;
+    /** Live activity, so FCM callbacks (which run on a service thread) can reach the WebView. */
+    private static java.lang.ref.WeakReference<MainActivity> currentActivity =
+            new java.lang.ref.WeakReference<>(null);
+    /** Token that arrived before the page was ready; flushed from onPageFinished(). */
+    private static String pendingPushToken;
+    /** Notification tap that arrived before the page was ready; flushed from onPageFinished(). */
+    private String pendingPushTarget;
     /** Upper bound for a single location fix before we report failure to the page. */
     private static final long LOCATION_TIMEOUT_MS = 20000L;
 
@@ -181,6 +193,8 @@ public final class MainActivity extends Activity {
         // Read the launch intent (SEND / VIEW text/plain) before loading so that app.js can pick the
         // text up from consumeSharedText() during init.
         readIntentText(getIntent());
+        // A tap that started the process still has to route once the page is live.
+        pendingPushTarget = FsPush.targetFromIntent(getIntent());
         webView.loadUrl(WEB_APP_URL);
     }
 
@@ -188,6 +202,12 @@ public final class MainActivity extends Activity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
+        // launchMode=singleTask: a notification tap while the activity is alive lands here. Route it
+        // in place; only a new share needs the document reload below.
+        String pushTarget = FsPush.targetFromIntent(intent);
+        if (pushTarget != null && !pushTarget.isEmpty()) {
+            deliverPushTarget(pushTarget);
+        }
         // launchMode=singleTask: a second share arrives here instead of in onCreate. Reloading the
         // page lets app.js consume the new text through its normal init path.
         if (readIntentText(intent) && webView != null) {
@@ -201,13 +221,19 @@ public final class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        appForeground = true;
+        currentActivity = new java.lang.ref.WeakReference<>(this);
         if (webView != null) {
             webView.onResume();
         }
+        // Ask Firebase for the current token now; it is cached, so this is cheap after the first call.
+        FsPush.requestToken(this);
     }
 
     @Override
     protected void onPause() {
+        // From here on a message must become a tray notification, not a JS call into a paused page.
+        appForeground = false;
         if (webView != null) {
             webView.onPause();
         }
@@ -365,6 +391,7 @@ public final class MainActivity extends Activity {
             // delegated to the web layer. Fires for every document, including the reload that
             // onNewIntent() triggers for a second share.
             pageReady = true;
+            flushPendingPush();
         }
 
         @Override
@@ -1005,6 +1032,99 @@ public final class MainActivity extends Activity {
         }
     }
 
+    // ------------------------------------------------------------ cloud messaging
+
+    /** Used by {@link FsMessagingService} to choose in-app delivery over a tray notification. */
+    static boolean isInForeground() {
+        return appForeground;
+    }
+
+    /** Called by the messaging service when Firebase issues or rotates a token. */
+    static void onFcmToken(String token) {
+        if (token == null || token.isEmpty()) {
+            return;
+        }
+        pendingPushToken = token;
+        MainActivity host = currentActivity.get();
+        if (host != null) {
+            host.deliverPushToken(token);
+        }
+    }
+
+    /** Called by the messaging service for a message received while the UI is alive. */
+    static void onFcmMessage(String target) {
+        MainActivity host = currentActivity.get();
+        if (host != null && target != null && !target.isEmpty()) {
+            host.deliverPushTarget(target);
+        }
+    }
+
+    /**
+     * Hands a token to {@code window.FS.push.onNativeToken}. The web layer owns backend
+     * registration, so a token obtained before sign-in is never registered anonymously.
+     */
+    private void deliverPushToken(final String token) {
+        if (token == null || token.isEmpty()) {
+            return;
+        }
+        pendingPushToken = token;
+        if (!pageReady) {
+            return;
+        }
+        evaluateInPage("(function(){try{if(window.FS&&window.FS.push&&typeof "
+                + "window.FS.push.onNativeToken==='function'){window.FS.push.onNativeToken('"
+                + jsonEscape(token) + "');}}catch(e){}})()", "onNativeToken");
+    }
+
+    /** Hands a validated route to {@code window.FS.push.openTargetFor}. */
+    private void deliverPushTarget(final String target) {
+        String route = FsPush.sanitizeTarget(target);
+        if (route == null || route.isEmpty()) {
+            return;
+        }
+        pendingPushTarget = route;
+        if (!pageReady) {
+            return;
+        }
+        pendingPushTarget = null;
+        evaluateInPage("(function(){try{if(window.FS&&window.FS.push&&typeof "
+                + "window.FS.push.openTargetFor==='function'){window.FS.push.openTargetFor('"
+                + jsonEscape(route) + "');}}catch(e){}})()", "openTargetFor");
+    }
+
+    private void flushPendingPush() {
+        String target = pendingPushTarget;
+        if (target != null) {
+            pendingPushTarget = null;
+            deliverPushTarget(target);
+        }
+        String token = pendingPushToken;
+        if (token != null) {
+            deliverPushToken(token);
+        }
+    }
+
+    private void evaluateInPage(final String script, final String what) {
+        final WebView view = webView;
+        if (view == null) {
+            return;
+        }
+        view.post(new Runnable() {
+            @Override
+            public void run() {
+                WebView target = webView;
+                if (target == null) {
+                    return;
+                }
+                try {
+                    target.evaluateJavascript(script, null);
+                } catch (RuntimeException e) {
+                    Log.w(TAG, what + " delivery failed", e);
+                }
+            }
+        });
+    }
+
     private void runOnUiThreadIfPossible(Runnable action) {
         WebView view = webView;
         if (view != null) {
@@ -1302,6 +1422,30 @@ public final class MainActivity extends Activity {
                     }
                 }
             });
+        }
+
+        /**
+         * Current FCM registration token, or {@code ""} before Firebase has issued one. The page
+         * registers it with the backend only after the user is authenticated.
+         */
+        @JavascriptInterface
+        public String getFcmToken() {
+            String token = FsPush.storedToken(MainActivity.this);
+            return token == null ? "" : token;
+        }
+
+        /**
+         * Records which FamilyShield account owns this device token so a logout or account switch
+         * can ask the backend to drop the old binding. An empty id clears the local association.
+         */
+        @JavascriptInterface
+        public void setFcmUser(String userId) {
+            String id = clip(trim(userId), 64);
+            if (id.isEmpty()) {
+                FsPush.clearTokenUser(MainActivity.this);
+            } else {
+                FsPush.markTokenUser(MainActivity.this, id);
+            }
         }
 
         @JavascriptInterface

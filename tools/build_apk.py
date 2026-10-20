@@ -22,12 +22,21 @@ performed here as well, both driven by closure.json:
     * resource overlays -- each AAR res/ dir is aapt2-compiled separately and
       linked after the libraries, before the app, so the app keeps precedence.
 
+Firebase runtime configuration is generated, not hand-copied: google-services.json
+is read from outside app/res/, the client matching the manifest package is
+selected, and its values are written to build/firebase-res/values/values.xml and
+linked into resources.arsc -- the same substitution the google-services Gradle
+plugin performs. See the "google-services.json -> Firebase runtime resources"
+section below.
+
 Usage:
-    python tools/build_apk.py [--sdk C:\\path\\to\\android-sdk] [--out dist] [--no-deps]
+    python tools/build_apk.py [--sdk C:\\path\\to\\android-sdk] [--out dist]
+                             [--no-deps] [--google-services PATH] [--require-fcm]
 """
 
 import argparse
 import copy
+import hashlib
 import json
 import os
 import re
@@ -339,7 +348,7 @@ def report_overlay_precedence(res_dirs, app_res):
             owner = owners.setdefault(key, coord)
             if owner != coord:
                 clashes.add(key)
-    log(f"res        {len(res_dirs)} AAR res/ overlay(s), {len(owners):,} resource name(s)")
+    log(f"res        {len(res_dirs)} res/ overlay(s), {len(owners):,} resource name(s)")
     if clashes:
         log(f"res        {len(clashes)} name(s) shipped by several AARs (first wins): "
             + ", ".join(f"{t}/{n}" for t, n in sorted(clashes)[:4]))
@@ -363,6 +372,273 @@ def compile_dependency_resources(aapt2, res_dirs, out_dir):
         log(f"res        {len(empty)} AAR res/ dir(s) are empty: "
             + ", ".join(sorted(empty)[:6]) + (" ..." if len(empty) > 6 else ""))
     return archives
+
+
+# --- google-services.json -> Firebase runtime resources --------------------
+# The com.google.gms.google-services Gradle plugin has exactly one build-time
+# job: turn google-services.json into res/values/values.xml, because
+# FirebaseOptions.fromResource() resolves its configuration by *resource name*
+# (string/google_app_id, string/gcm_defaultSenderId, string/project_id,
+# string/google_api_key, ...). Without those strings firebase-messaging is only
+# dead bytecode: FirebaseApp never initialises, so FirebaseMessaging.getToken()
+# throws "Default FirebaseApp is not initialized in this process" no matter how
+# many messaging classes were dexed in.
+#
+# There is no plugin here, so the substitution is done directly:
+#   * the file is read from outside app/res/ (it is deployment configuration for
+#     a real project, not a hand-maintained resource) in this order:
+#     --google-services, $FS_GOOGLE_SERVICES_JSON, app/google-services.json,
+#     <repo>/google-services.json;
+#   * the client whose client_info.android_client_info.package_name equals the
+#     applicationId declared in app/AndroidManifest.xml is selected, so a
+#     multi-client file can never bind the APK to another package's project;
+#   * the values are written to build/firebase-res/values/values.xml and compiled
+#     into their own aapt2 archive, i.e. they travel through the normal link step
+#     into resources.arsc instead of being copied into app/res by hand.
+#
+# Nothing is invented and nothing is guessed: a file that does not name the app's
+# package, a client without an api_key, or a blank project_number is a hard
+# error, and the strings are verified back out of the linked APK.
+
+GOOGLE_SERVICES_ENV = "FS_GOOGLE_SERVICES_JSON"
+GOOGLE_SERVICES_FILES = (APP / "google-services.json", ROOT / "google-services.json")
+
+# android resource name -> the google-services.json field it must come from.
+# The first four are what FirebaseOptions/FirebaseMessaging actually dereference;
+# the rest are emitted when present and omitted when absent (FirebaseOptions
+# treats them as optional), rather than being written as empty strings.
+_FIREBASE_REQUIRED = {
+    "google_app_id": "client_info.mobilesdk_app_id",
+    "gcm_defaultSenderId": "project_info.project_number",
+    "project_id": "project_info.project_id",
+    "google_api_key": "api_key[].current_key",
+}
+_FIREBASE_OPTIONAL = {
+    "google_crash_reporting_api_key": "api_key[].current_key",
+    "google_storage_bucket": "project_info.storage_bucket",
+    "firebase_database_url": "project_info.firebase_url",
+    "default_web_client_id": "oauth_client[client_type=3].client_id",
+}
+
+# Type descriptors as d8 stores them; used to prove the messaging classes that
+# the config belongs to really are in the dex after d8 ran.
+_FCM_DEX_TYPES = (
+    b"Lcom/google/firebase/messaging/FirebaseMessaging;",
+    b"Lcom/google/firebase/messaging/FirebaseMessagingService;",
+)
+
+
+def _rel(path):
+    try:
+        return Path(path).resolve().relative_to(ROOT).as_posix()
+    except (ValueError, OSError):
+        return str(path)
+
+
+def manifest_app_id():
+    """The applicationId for this build: the app manifest's package attribute."""
+    path = APP / "AndroidManifest.xml"
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        die(f"cannot read {_rel(path)}: {exc}")
+    match = re.search(r'package\s*=\s*"([^"]*)"', text)
+    if not match or not match.group(1).strip():
+        die(f"{_rel(path)} has no package attribute, so the applicationId is unknown")
+    return match.group(1).strip()
+
+
+def find_google_services(explicit=None):
+    """(path, how) for the google-services.json to use, or (None, why not)."""
+    candidates = []
+    if explicit:
+        candidates.append((Path(explicit), "--google-services"))
+    env = os.environ.get(GOOGLE_SERVICES_ENV, "").strip()
+    if env:
+        candidates.append((Path(env), f"${GOOGLE_SERVICES_ENV}"))
+    candidates += [(path, _rel(path)) for path in GOOGLE_SERVICES_FILES]
+
+    for path, how in candidates:
+        if path.is_file():
+            return path, how
+        if not how.startswith(("--", "$")):
+            continue                    # a searched default: fine if absent
+        # An explicit pointer is a claim; honour it or fail loudly.
+        die(f"{how} points at {path}, which does not exist")
+
+    looked = ", ".join(_rel(p) for p in GOOGLE_SERVICES_FILES)
+    return None, f"${GOOGLE_SERVICES_ENV} is unset and none of {looked} exists"
+
+
+def load_google_services(path):
+    try:
+        text = Path(path).read_text(encoding="utf-8-sig")
+    except OSError as exc:
+        die(f"cannot read {path}: {exc}")
+    try:
+        doc = json.loads(text)
+    except ValueError as exc:
+        die(f"{_rel(path)} is not valid JSON: {exc}")
+    if not isinstance(doc, dict):
+        die(f"{_rel(path)} is not a google-services.json object")
+    return doc
+
+
+def _as_list(value):
+    """google-services.json flips between object and array across formats."""
+    if isinstance(value, dict):
+        return [value]
+    return [item for item in value if isinstance(item, dict)] if isinstance(value, list) else []
+
+
+def select_google_client(doc, app_id, path):
+    """The client entry whose android package_name == the manifest package."""
+    clients = _as_list(doc.get("client"))
+    if not clients:
+        die(f'{_rel(path)} has no "client" entries')
+
+    by_package = {}
+    for client in clients:
+        android = (client.get("client_info") or {}).get("android_client_info") or {}
+        package = (android.get("package_name") or "").strip()
+        if package:
+            by_package.setdefault(package, client)
+
+    client = by_package.get(app_id)
+    if client is None:
+        known = ", ".join(sorted(by_package)) or "none"
+        die(f'{_rel(path)} has no client for package "{app_id}" (it declares: {known}).'
+            " The applicationId comes from app/AndroidManifest.xml: register that exact"
+            " package in the Firebase console and download the file again.")
+    return client
+
+
+def firebase_resource_values(doc, client, path):
+    """Ordered {android string name: value} for the generated values.xml."""
+    project = doc.get("project_info")
+    if not isinstance(project, dict):
+        die(f'{_rel(path)} has no "project_info" object')
+    info = client.get("client_info") or {}
+
+    current_key = None
+    for entry in _as_list(client.get("api_key")):
+        current_key = (entry.get("current_key") or "").strip()
+        if current_key:
+            break                                     # current_key, not legacy
+
+    web_client_id = None
+    for entry in _as_list(client.get("oauth_client")):
+        if str(entry.get("client_type")) == "3" and entry.get("client_id"):
+            web_client_id = str(entry["client_id"]).strip()
+            break
+
+    values = {
+        "google_app_id": info.get("mobilesdk_app_id"),
+        "gcm_defaultSenderId": project.get("project_number"),
+        "project_id": project.get("project_id"),
+        "google_api_key": current_key,
+        # Firebase reads the same key again for Crashlytics-style reporting.
+        "google_crash_reporting_api_key": current_key,
+        "google_storage_bucket": project.get("storage_bucket"),
+        "firebase_database_url": project.get("firebase_url"),
+        "default_web_client_id": web_client_id,
+    }
+    values = {name: str(value).strip() for name, value in values.items()
+              if value is not None and str(value).strip()}
+
+    missing = [f"{_FIREBASE_REQUIRED[name]} ({name})"
+               for name in _FIREBASE_REQUIRED if name not in values]
+    if missing:
+        die(f'{_rel(path)}: the client for this package is missing '
+            + ", ".join(missing)
+            + ". An APK carrying half a Firebase config starts FirebaseApp and"
+              " then fails every token request, so the build stops here.")
+    dropped = [name for name in _FIREBASE_OPTIONAL if name not in values]
+    if dropped:
+        log(f"firebase   not set in google-services.json (optional): {', '.join(dropped)}")
+    return values
+
+
+def _android_string(value):
+    """Escape a value for aapt2's string-resource grammar.
+
+    aapt2 rejects unescaped apostrophes ("unescaped apostrophe") and would strip
+    quotes; a leading @ or ? would be read as a resource reference. ET has
+    already done the XML-level escaping by the time this runs.
+    """
+    escaped = value.replace("\\", "\\\\").replace("'", "\\'").replace('"', '\\"')
+    if escaped[:1] in ("@", "?"):
+        escaped = "\\" + escaped
+    return escaped
+
+
+def write_firebase_resources(values, res_dir, source, app_id):
+    """Write <res_dir>/values/values.xml; returns the res/ dir to aapt2-compile."""
+    values_dir = Path(res_dir) / "values"
+    values_dir.mkdir(parents=True, exist_ok=True)
+    root = ET.Element("resources")
+    for name, value in values.items():
+        element = ET.SubElement(root, "string", {"name": name})
+        element.text = _android_string(value)
+    path = values_dir / "values.xml"
+    path.write_text(
+        '<?xml version="1.0" encoding="utf-8"?>\n'
+        "<!-- GENERATED by tools/build_apk.py from google-services.json.\n"
+        f"     source: {source}\n"
+        f"     client: {app_id}\n"
+        "     FirebaseOptions.fromResource() looks these names up by string, so\n"
+        "     they have to reach resources.arsc. Do not hand-edit or copy this\n"
+        "     into app/res/: edit the google-services.json in the Firebase console\n"
+        "     and rebuild. -->\n"
+        + ET.tostring(root, encoding="unicode") + "\n",
+        encoding="utf-8",
+    )
+    return Path(res_dir)
+
+
+def verify_fcm_dex(dex_files):
+    """Prove firebase-messaging really was dexed into the APK's dex set.
+
+    The full Firebase AAR closure is passed to d8, but a closure that silently
+    lost firebase-messaging (or a d8 run that only took our classes) would still
+    produce a valid apk -- one where js/push.js reports firebase-not-in-build at
+    runtime. Searching the dex bytes for the class descriptors is cheap and
+    fails the build instead of the phone.
+    """
+    missing = []
+    for type_name in _FCM_DEX_TYPES:
+        if not any(type_name in dex.read_bytes() for dex in dex_files):
+            missing.append(type_name.decode("utf-8").strip("L;").replace("/", "."))
+    if missing:
+        die("Firebase Messaging is missing from the built dex: " + ", ".join(missing)
+            + " (check .deps/firebase/closure.json and the d8 input list)")
+    log(f"dex        verified {len(_FCM_DEX_TYPES)} firebase-messaging class(es) in "
+        + ", ".join(dex.name for dex in dex_files))
+
+
+def verify_firebase_resources(aapt2, apk, expected):
+    """Prove the generated config strings reached resources.arsc in the APK.
+
+    The dump is the only end-to-end proof; a config that exists only in
+    build/firebase-res/ would surface at runtime as "Default FirebaseApp is not
+    initialized in this process", so this is a hard check (skipped only if aapt2
+    cannot dump at all).
+    """
+    proc = subprocess.run([str(aapt2), "dump", "resources", str(apk)],
+                          capture_output=True, text=True)
+    if proc.returncode != 0 or not proc.stdout.strip():
+        log("verify     could not dump resources; skipping Firebase config check")
+        return
+    dump = proc.stdout
+    absent = sorted(name for name in expected if f"string/{name}" not in dump)
+    if absent:
+        die("Firebase config resource(s) missing from the apk: " + ", ".join(absent)
+            + " (the generated google-services.json resources were not linked)")
+    wrong = sorted(name for name, value in expected.items() if value not in dump)
+    if wrong:
+        die("Firebase config resource(s) carry an unexpected value in the apk: "
+            + ", ".join(wrong) + " (a stale overlay won the link)")
+    log(f"verify     firebase: {len(expected)} config string(s) in resources.arsc")
 
 
 # --- AAR manifest merger ---------------------------------------------------
@@ -746,6 +1022,13 @@ def main():
     ap.add_argument("--out", default="dist")
     ap.add_argument("--no-deps", action="store_true",
                     help="skip .deps/firebase (debug builds of the shell only)")
+    ap.add_argument("--google-services", metavar="PATH",
+                    help="google-services.json to use (overrides "
+                         f"${GOOGLE_SERVICES_ENV}, app/google-services.json and "
+                         "<repo>/google-services.json)")
+    ap.add_argument("--require-fcm", action="store_true",
+                    help="fail instead of warning when no google-services.json is "
+                         "available (the APK would ship Firebase without config)")
     args = ap.parse_args()
 
     sdk = find_sdk(args.sdk)
@@ -789,14 +1072,60 @@ def main():
         log(f"deps       {len(artifacts)} artifact(s): {len(deps)} jar(s), "
             f"{len(res_dirs)} res/ dir(s), {len(lib_manifests)} manifest(s)")
 
+    # 1b. Firebase runtime configuration (google-services.json) -----------
+    # The only build-time thing the google-services plugin does, done here:
+    # google-services.json -> res/values/values.xml -> resources.arsc. The
+    # applicationId comes from the manifest, because it is the key that picks
+    # the right client out of a multi-package file.
+    firebase_values, firebase_res, firebase_source = {}, None, None
+    app_id = manifest_app_id()
+    if args.no_deps:
+        log("firebase   --no-deps: no Firebase classes are dexed, so "
+            "google-services.json is not consumed")
+    else:
+        gs_path, gs_how = find_google_services(args.google_services)
+        if gs_path is None:
+            unconfigured = (
+                f"no google-services.json ({gs_how}). The APK ships the Firebase "
+                "classes but no project config, so FirebaseApp cannot initialise "
+                "and no FCM token can be minted; js/push.js will keep reporting "
+                "firebase-not-in-build")
+            if args.require_fcm:
+                die(unconfigured + " (--require-fcm)")
+            log("firebase   " + unconfigured)
+        else:
+            gs_doc = load_google_services(gs_path)
+            gs_client = select_google_client(gs_doc, app_id, gs_path)
+            firebase_values = firebase_resource_values(gs_doc, gs_client, gs_path)
+            digest = hashlib.sha256(Path(gs_path).read_bytes()).hexdigest()[:12]
+            firebase_source = f"{gs_how} (sha256 {digest})"
+            firebase_res = write_firebase_resources(
+                firebase_values, BUILD / "firebase-res", firebase_source, app_id)
+            log(f"firebase   {firebase_source}")
+            log(f"firebase   client {app_id}: {len(firebase_values)} value(s), "
+                f"app_id {firebase_values['google_app_id']}, "
+                f"project {firebase_values['project_id']}, "
+                f"sender {firebase_values['gcm_defaultSenderId']}")
+            log(f"firebase   generated {_rel(firebase_res / 'values' / 'values.xml')}")
+
     # 2. resources ---------------------------------------------------------
     # aapt2 compiles one .zip per res/ dir; the order in which they are passed
     # to `aapt2 link` decides which duplicate definition wins, so the app is
     # last (app res/ overlays every library resource, as in AGP).
     dep_archives = []
+    overlays = list(res_dirs)
+    if firebase_res is not None:
+        # One more overlay, after the AAR res/ dirs and before the app: the
+        # generated values are Firebase-owned, but if app/res ever declares one
+        # of these names the app keeps precedence, as with the real plugin.
+        overlays.append(("google-services.json", firebase_res))
+    if overlays:
+        report_overlay_precedence(overlays, APP / "res")
     if res_dirs:
-        report_overlay_precedence(res_dirs, APP / "res")
         dep_archives = compile_dependency_resources(aapt2, res_dirs, BUILD / "deps-res")
+    if firebase_res is not None:
+        dep_archives += compile_dependency_resources(
+            aapt2, [("google-services-config", firebase_res)], BUILD / "gen-res")
     res_zip = BUILD / "resources.zip"
     run([aapt2, "compile", "--dir", APP / "res", "-o", res_zip])
 
@@ -819,8 +1148,8 @@ def main():
     if not (n_code and n_name):
         die("AndroidManifest.xml is missing android:versionCode/versionName")
 
-    package = re.search(r'package="([^"]+)"', text)
-    app_id = package.group(1) if package else ""
+    # app_id was resolved from this same manifest in step 1b (the Firebase client
+    # lookup keys off it), and the version rewrite above does not touch it.
     if lib_manifests:
         lib_texts = [(coord, path, path.read_text(encoding="utf-8"))
                      for coord, path in lib_manifests]
@@ -852,6 +1181,11 @@ def main():
     run(link_cmd)
     if lib_manifests:
         verify_merged_manifest(aapt2, unsig, report)
+    if firebase_values:
+        # resources.arsc is written by `aapt2 link`, so this is the first point
+        # at which the generated config can be checked inside the real apk.
+        verify_firebase_resources(aapt2, unsig, firebase_values)
+        log(f"verify     Firebase config strings are in {_rel(unsig)}")
 
     # 4b. dependency jars --------------------------------------------------
     # javac compiles the app against these jars and d8 dexes them into the apk,
@@ -882,9 +1216,17 @@ def main():
     if dropped:
         log(f"stripped {dropped} MethodParameters attribute(s) (R8 8.2.2 null-name bug)")
     log(f"d8: {len(class_files)} class file(s) + {len(deps)} jar(s) -> {dex_out}")
-    dex_cmd = [d8, "--release", "--min-api", str(MIN_SDK), "--lib", android_jar,
-               "--output", dex_out] + class_files + [str(j) for j in deps]
-    proc = subprocess.run([str(c) for c in dex_cmd], capture_output=True, text=True)
+    # One Firebase-classpath dex run can exceed the Windows 32767-character
+    # command line once the AAR closure is fully expanded. d8 supports
+    # @<argfile> (one argument per line, not re-split), so the long input list
+    # goes into a file and the process invocation stays short.
+    d8_args = [d8, "--release", "--min-api", str(MIN_SDK), "--lib", str(android_jar),
+               "--output", str(dex_out)] + class_files + [str(j) for j in deps]
+    argfile = BUILD / "d8-args.txt"
+    argfile.parent.mkdir(parents=True, exist_ok=True)
+    argfile.write_text("\n".join(str(a) for a in d8_args[1:]) + "\n", encoding="utf-8")
+    proc = subprocess.run([str(d8_args[0]), "@" + str(argfile)],
+                          capture_output=True, text=True)
     if proc.returncode != 0:
         print(proc.stdout, proc.stderr, file=sys.stderr)
         die("d8 failed")
@@ -903,6 +1245,8 @@ def main():
         die("d8 produced no classes.dex")
     if len(dex_files) > 1:
         log(f"d8 produced {len(dex_files)} dex files: {', '.join(p.name for p in dex_files)}")
+    if deps:
+        verify_fcm_dex(dex_files)
 
     # 7. package dex next to the resources --------------------------------
     with zipfile.ZipFile(unsig, "a", zipfile.ZIP_DEFLATED) as zf:
@@ -943,6 +1287,11 @@ def main():
     # 9. keep the verified artifact in build/ for inspection too ----------
     shutil.copy2(signed, BUILD / signed.name)
     size = signed.stat().st_size
+    if firebase_values:
+        log(f"firebase   configured from {firebase_source}")
+    elif not args.no_deps:
+        log("firebase   UNCONFIGURED: Firebase classes are present but "
+            "FirebaseApp cannot initialise without google-services.json")
     log(f"OK  {signed}  ({size:,} bytes)")
 
 
