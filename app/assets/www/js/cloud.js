@@ -50,6 +50,23 @@
     return node;
   }
 
+  // People type "+91 98765 43210" — exactly what the placeholder shows — so strip the
+  // usual separators before validating instead of rejecting a number that looks right.
+  function normalizePhoneInput(value) {
+    var raw = String(value || '').replace(/[\s().-]/g, '');
+    if (!raw) return '';
+    if (raw.indexOf('00') === 0) raw = '+' + raw.slice(2);
+    if (raw.charAt(0) !== '+') {
+      // A bare national number is unambiguous in the markets this app ships for
+      // (the emergency screen already hardcodes 112), so 10 digits — or 0 followed
+      // by 10 — is read as +91. Anything else needs the explicit dialling code.
+      if (/^0\d{10}$/.test(raw)) raw = '+91' + raw.slice(1);
+      else if (/^\d{10}$/.test(raw)) raw = '+91' + raw;
+      else if (/^\d{11,15}$/.test(raw)) raw = '+' + raw;
+    }
+    return raw;
+  }
+
   function bridge() {
     var b = FS.android || window.FSAndroid || window.AndroidBridge || null;
     if (!b) return null;
@@ -227,7 +244,7 @@
     code.addEventListener('input', function () { STATE.codeDraft = code.value; });
 
     sendBtn.addEventListener('click', function () {
-      var value = phone.value.trim();
+      var value = normalizePhoneInput(phone.value);
       STATE.phoneDraft = value;
       if (!/^\+[1-9]\d{7,14}$/.test(value)) {
         setMessage('error', t('cloud.invalidPhone', 'Enter the number with country code, e.g. +919876543210.'));
@@ -249,7 +266,7 @@
             // Server answered 503 for this case, so it normally lands in catch below.
             STATE.authHint = t('cloud.noSmsProvider', 'SMS delivery is not configured on the server yet.');
           } else if (channel === 'dev_console') {
-            STATE.authHint = t('cloud.devCode', 'Development mode: the code is printed in the server console.');
+            STATE.authHint = t('cloud.devHint', 'Development mode: the code is printed on the server console.');
           } else if (data.expiresInSeconds) {
             STATE.authHint = t('cloud.codeSent', 'Code sent. It expires in a few minutes.')
               + ' (' + Math.round(data.expiresInSeconds / 60) + ' min)';
@@ -319,7 +336,11 @@
   function accountCard() {
     var card = el('div', 'cloud-card');
     var head = el('div', 'cloud-row');
-    head.appendChild(el('span', 'cloud-avatar', (STATE.user.displayName || STATE.user.phone || '?').slice(0, 1).toUpperCase()));
+    // Avatar: first letter of the name, else the first digit of the number.
+    // Using the raw first character showed a bare "+" for every Indian number.
+    var avatarSeed = String(STATE.user.displayName || '').replace(/[^\p{L}\p{N}]/gu, '') ||
+      String(STATE.user.phone || '').replace(/\D/g, '') || '?';
+    head.appendChild(el('span', 'cloud-avatar', avatarSeed.slice(0, 1).toUpperCase()));
     var names = el('div', 'cloud-grow');
     names.appendChild(el('strong', null, STATE.user.displayName || t('cloud.noName', 'No display name yet')));
     names.appendChild(el('span', 'cloud-hint', STATE.user.phone));
@@ -393,7 +414,7 @@
     var add = el('button', 'btn btn-primary', t('cloud.invite', 'Send invitation'));
     add.type = 'button';
     add.addEventListener('click', function () {
-      var value = phone.value.trim();
+      var value = normalizePhoneInput(phone.value);
       if (!/^\+[1-9]\d{7,14}$/.test(value)) {
         setMessage('error', t('cloud.invalidPhone', 'Enter the number with country code, e.g. +919876543210.'));
         render();

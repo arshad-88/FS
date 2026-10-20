@@ -518,7 +518,7 @@
     if (!members.length) {
       var empty = el('div', 'empty');
       empty.appendChild(icon('i-family', 'icon--xl'));
-      empty.appendChild(el('div', 'h3', t('family.title')));
+      empty.appendChild(el('div', 'h3', t('family.empty')));
       empty.appendChild(el('p', 'small muted', t('family.subtitle')));
       host.appendChild(empty);
       return;

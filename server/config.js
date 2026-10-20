@@ -51,6 +51,16 @@ function tokenSecret() {
 const otpProvider = (process.env.FS_OTP_PROVIDER || 'none').toLowerCase();
 const pushProvider = (process.env.FS_PUSH_PROVIDER || 'none').toLowerCase();
 
+// Dev mode echoes OTPs to the server console, so it must be impossible to reach
+// in a production process even when FS_DEV_MODE survives into the deployed env.
+const nodeEnv = (process.env.NODE_ENV || '').toLowerCase();
+const isProduction = nodeEnv === 'production';
+const devModeRequested = boolEnv('FS_DEV_MODE', false);
+if (devModeRequested && isProduction) {
+  console.warn('[familyshield] FS_DEV_MODE is set but NODE_ENV=production — console OTP echo stays disabled');
+}
+const devMode = devModeRequested && !isProduction;
+
 module.exports = {
   port: intEnv('FS_PORT', 8787, 1, 65535),
   host: process.env.FS_HOST || '0.0.0.0',
@@ -58,7 +68,7 @@ module.exports = {
   dbPath: process.env.FS_DB_PATH ? path.resolve(process.env.FS_DB_PATH) : path.join(DATA_DIR, 'familyshield.db'),
   tokenSecret: tokenSecret(),
 
-  devMode: boolEnv('FS_DEV_MODE', false),
+  devMode,
 
   otpTtlSeconds: intEnv('FS_OTP_TTL_SECONDS', 300, 60, 900),
   otpMaxAttempts: intEnv('FS_OTP_MAX_ATTEMPTS', 5, 3, 10),

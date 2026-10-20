@@ -39,7 +39,14 @@ against `android.jar` + 64 jars, d8, zipalign, apksigner).
 
 ## Verified on 2026-10-20 (evidence, not intent)
 
-- `python tools/build_apk.py` → OK, `dist/FamilyShield-1.3.apk`, 3,803,264 bytes, v2+v3 signed.
+- `python tools/build_apk.py` → OK, `dist/FamilyShield-1.6.apk`, 3,803,264 bytes, v2+v3 signed.
+  Package `com.familyshield.app`, versionCode 7, versionName 1.6, minSdk 24, targetSdk 34.
+  Resolved Firebase stack at build time: firebase-messaging **26.0.0**, firebase-common 23.0.0,
+  play-services-base/basement 18.9.0. `dist/FamilyShield-1.5.apk` is kept as the previous
+  known-good artifact.
+- `aapt2 dump badging` on 1.6: permissions are INTERNET, COARSE+FINE_LOCATION,
+  POST_NOTIFICATIONS, ACCESS_NETWORK_STATE, WAKE_LOCK, c2dm RECEIVE and the app's own
+  DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION — no SMS, camera, or storage permissions.
 - Build log: manifest merged 41 AAR manifests, added `com.google.android.c2dm.permission.RECEIVE`,
   `ACCESS_NETWORK_STATE`, `WAKE_LOCK`; `dex verified 2 firebase-messaging class(es) in classes.dex`.
 - `aapt2 dump xmltree` on the *packaged* APK: `com.familyshield.app.FsMessagingService` with

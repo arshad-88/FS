@@ -458,10 +458,12 @@
 
     var stats = node('div', 'sos__stats mt-12');
     stats.appendChild(node('div', 'sos__stat', t('sos.familyNotified', { n: emergency.familyNotified || 0 })));
+    var nearby = emergency.nearby || {};
     stats.appendChild(node('div', 'sos__stat', nearbyText(emergency.nearby)));
+    // "no_location" already explains the missing fix; avoid printing it twice.
     if (emergency.location) {
       stats.appendChild(node('div', 'sos__stat', t('sos.locationShared')));
-    } else {
+    } else if (nearby.state !== 'no_location') {
       stats.appendChild(node('div', 'sos__stat', t('sos.locationMissing')));
     }
     card.appendChild(stats);

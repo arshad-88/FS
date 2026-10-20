@@ -138,7 +138,13 @@ final class FsPush {
         if (app == null || !configured(app)) return;
         try {
             FirebaseMessaging.getInstance().getToken()
-                    .addOnSuccessListener(token -> MainActivity.onFcmToken(token))
+                    .addOnSuccessListener(token -> {
+                        // Cache first: the JS bridge reads the stored token, and
+                        // onNewToken() does not re-fire for an existing token, so a
+                        // page reload right after startup must not see "".
+                        storeToken(app, token);
+                        MainActivity.onFcmToken(token);
+                    })
                     .addOnFailureListener(err -> Log.w(TAG, "FCM getToken failed: " + err.getClass().getSimpleName()));
         } catch (RuntimeException err) {
             Log.w(TAG, "FCM getToken unavailable: " + err.getClass().getSimpleName());
